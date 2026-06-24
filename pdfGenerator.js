@@ -33,14 +33,10 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
       doc.y = y + 24;
     }
 
-    function img(imgBuf, maxH) {
-      let w = pw, h = (w / 4) * 3;
-      const avail = Math.min(maxH, doc.page.height - doc.y - 20);
-      if (h > avail) { h = avail; w = (h / 3) * 4; }
-      if (w > 0 && h > 0) {
-        doc.image(imgBuf, (doc.page.width - w) / 2, doc.y, { fit: [w, h], align: 'center' });
-        doc.y += h + 8;
-      }
+    function drawImg(buf, x, y, maxW, maxH) {
+      let w = maxW, h = (w / 4) * 3;
+      if (h > maxH) { h = maxH; w = (h / 3) * 4; }
+      if (w > 10 && h > 10) doc.image(buf, x + (maxW - w) / 2, y, { fit: [w, h], align: 'center' });
     }
 
     try {
@@ -79,9 +75,11 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
       if (antes) {
         doc.moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).strokeColor('#4CAF50').lineWidth(1).stroke();
         doc.moveDown(0.5);
-        doc.fillColor('#4CAF50').fontSize(11).font('Helvetica-Bold').text('FOTO ANTES', { align: 'center' });
-        doc.moveDown(0.3);
-        img(antes, doc.page.height - doc.y - 20);
+        y = doc.y;
+        doc.fillColor('#4CAF50').fontSize(11).font('Helvetica-Bold').text('FOTO ANTES', 50, y, { align: 'center', width: pw });
+        y += 18;
+        const availH = doc.page.height - y - 30;
+        drawImg(antes, 50, y, pw, availH);
       }
 
       doc.fontSize(8).fillColor('#aaa').font('Helvetica')
@@ -91,21 +89,37 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
       doc.addPage();
 
       const durante = getBuf('durante');
-      if (durante) {
-        doc.fillColor('#FF9800').fontSize(11).font('Helvetica-Bold').text('FOTO DURANTE', { align: 'center' });
-        doc.moveDown(0.3);
-        const half = (doc.page.height - doc.y - 50) / 2;
-        img(durante, half);
-      }
-
       const despues = getBuf('despues');
-      if (despues) {
-        doc.moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).strokeColor('#ddd').lineWidth(1).stroke();
-        doc.moveDown(0.5);
-        doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', { align: 'center' });
-        doc.moveDown(0.3);
-        const remain = doc.page.height - doc.y - 30;
-        img(despues, remain);
+
+      if (durante && despues) {
+        // Split page in half: top = DURANTE, bottom = DESPUES
+        const midY = doc.page.height / 2 - 10;
+
+        y = 40;
+        doc.fillColor('#FF9800').fontSize(11).font('Helvetica-Bold').text('FOTO DURANTE', 50, y, { align: 'center', width: pw });
+        y += 18;
+        const topH = midY - y - 10;
+        drawImg(durante, 50, y, pw, topH);
+
+        y = midY + 10;
+        doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor('#ddd').lineWidth(1).stroke();
+        y += 14;
+        doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', 50, y, { align: 'center', width: pw });
+        y += 18;
+        const botH = doc.page.height - y - 30;
+        drawImg(despues, 50, y, pw, botH);
+
+      } else if (durante) {
+        y = 40;
+        doc.fillColor('#FF9800').fontSize(11).font('Helvetica-Bold').text('FOTO DURANTE', 50, y, { align: 'center', width: pw });
+        y += 18;
+        drawImg(durante, 50, y, pw, doc.page.height - y - 30);
+
+      } else if (despues) {
+        y = 40;
+        doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', 50, y, { align: 'center', width: pw });
+        y += 18;
+        drawImg(despues, 50, y, pw, doc.page.height - y - 30);
       }
 
       doc.fontSize(8).fillColor('#aaa').font('Helvetica')
