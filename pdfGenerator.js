@@ -70,7 +70,11 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
         doc.fontSize(14).font('Helvetica-Bold').text(section.label, { align: 'center' });
         doc.moveDown(0.5);
 
-        const fotoBase64 = fotos && fotos[section.key];
+        const fotoBase64 = fotos
+          ? Array.isArray(fotos)
+            ? fotos[{ antes: 0, durante: 1, despues: 2 }[section.key]]
+            : fotos[section.key]
+          : null;
         if (fotoBase64) {
           try {
             const raw = fotoBase64.replace(/^data:image\/\w+;base64,/, '');
@@ -100,12 +104,7 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
         doc.moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).stroke();
       }
 
-      doc.moveDown(2);
-      doc.fontSize(10).font('Helvetica').text(
-        `Firma del Técnico: ___________________________`,
-        { align: 'center' }
-      );
-      doc.text(tecnico, { align: 'center' });
+
     } catch (err) {
       try { doc.end(); } catch (e) {}
       return reject(err);
