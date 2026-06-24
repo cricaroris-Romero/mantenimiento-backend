@@ -74,10 +74,11 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
         yOff += 18;
         const imgW = pw;
         let imgH = (imgW / 4) * 3;
-        const maxH = ph - yOff - 30;
+        const maxH = (ph - 65) - yOff;
         if (imgH > maxH) { imgH = maxH; }
         if (imgW > 10 && imgH > 10 && antes) {
-          doc.image(antes, 50 + (pw - imgW) / 2, yOff, { fit: [imgW, imgH] });
+          const yCenter = yOff + (maxH - imgH) / 2;
+          doc.image(antes, 50 + (pw - imgW) / 2, yCenter, { fit: [imgW, imgH] });
         }
       }
 
@@ -95,9 +96,12 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
         yOff = 35;
         doc.fillColor('#FF9800').fontSize(11).font('Helvetica-Bold').text('FOTO DURANTE', 50, yOff, { align: 'center', width: pw });
         yOff += 18;
+        const sepY = 35 + 18 + maxImgH + 25; // separator y
+        const sectionH = (sepY - 5) - yOff;
         let ih = (pw / 4) * 3;
-        if (ih > maxImgH) ih = maxImgH;
-        doc.image(durante, 50, yOff, { fit: [pw, ih] });
+        if (ih > sectionH) ih = sectionH;
+        const yCenter = yOff + (sectionH - ih) / 2;
+        doc.image(durante, 50, yCenter, { fit: [pw, ih] });
       }
 
       if (durante && despues) {
@@ -106,17 +110,20 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
         yOff += 16;
         doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', 50, yOff, { align: 'center', width: pw });
         yOff += 18;
+        const sectionH = (ph - 65) - yOff;
         let ih = (pw / 4) * 3;
-        if (ih > maxImgH) ih = maxImgH;
-        doc.image(despues, 50, yOff, { fit: [pw, ih] });
+        if (ih > sectionH) ih = sectionH;
+        const yCenter = yOff + (sectionH - ih) / 2;
+        doc.image(despues, 50, yCenter, { fit: [pw, ih] });
       } else if (despues) {
         yOff = 35;
         doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', 50, yOff, { align: 'center', width: pw });
         yOff += 18;
+        const sectionH = (ph - 65) - yOff;
         let ih = (pw / 4) * 3;
-        const remain = ph - yOff - 30;
-        if (ih > remain) ih = remain;
-        doc.image(despues, 50, yOff, { fit: [pw, ih] });
+        if (ih > sectionH) ih = sectionH;
+        const yCenter = yOff + (sectionH - ih) / 2;
+        doc.image(despues, 50, yCenter, { fit: [pw, ih] });
       }
 
       doc.fontSize(8).fillColor('#aaa').font('Helvetica')
