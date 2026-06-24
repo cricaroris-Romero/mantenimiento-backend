@@ -72,13 +72,14 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
         yOff += 6;
         doc.fillColor('#4CAF50').fontSize(11).font('Helvetica-Bold').text('FOTO ANTES', 50, yOff, { align: 'center', width: pw });
         yOff += 18;
-        const imgW = pw;
+        const imgW = pw * 0.85;
         let imgH = (imgW / 4) * 3;
         const maxH = (ph - 65) - yOff;
         if (imgH > maxH) { imgH = maxH; }
         if (imgW > 10 && imgH > 10 && antes) {
           const yCenter = yOff + (maxH - imgH) / 2;
-          doc.image(antes, 50 + (pw - imgW) / 2, yCenter, { fit: [imgW, imgH] });
+          const xCenter = 50 + (pw - imgW) / 2;
+          doc.image(antes, xCenter, yCenter, { fit: [imgW, imgH] });
         }
       }
 
@@ -96,12 +97,14 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
         yOff = 35;
         doc.fillColor('#FF9800').fontSize(11).font('Helvetica-Bold').text('FOTO DURANTE', 50, yOff, { align: 'center', width: pw });
         yOff += 18;
-        const sepY = 35 + 18 + maxImgH + 25; // separator y
+        const sepY = 35 + 18 + maxImgH + 25;
         const sectionH = (sepY - 5) - yOff;
-        let ih = (pw / 4) * 3;
+        const imgW = pw * 0.85;
+        let ih = (imgW / 4) * 3;
         if (ih > sectionH) ih = sectionH;
         const yCenter = yOff + (sectionH - ih) / 2;
-        doc.image(durante, 50, yCenter, { fit: [pw, ih] });
+        const xCenter = 50 + (pw - imgW) / 2;
+        doc.image(durante, xCenter, yCenter, { fit: [imgW, ih] });
       }
 
       if (durante && despues) {
@@ -111,19 +114,23 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
         doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', 50, yOff, { align: 'center', width: pw });
         yOff += 18;
         const sectionH = (ph - 65) - yOff;
-        let ih = (pw / 4) * 3;
+        const imgW = pw * 0.85;
+        let ih = (imgW / 4) * 3;
         if (ih > sectionH) ih = sectionH;
         const yCenter = yOff + (sectionH - ih) / 2;
-        doc.image(despues, 50, yCenter, { fit: [pw, ih] });
+        const xCenter = 50 + (pw - imgW) / 2;
+        doc.image(despues, xCenter, yCenter, { fit: [imgW, ih] });
       } else if (despues) {
         yOff = 35;
         doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', 50, yOff, { align: 'center', width: pw });
         yOff += 18;
         const sectionH = (ph - 65) - yOff;
-        let ih = (pw / 4) * 3;
+        const imgW = pw * 0.85;
+        let ih = (imgW / 4) * 3;
         if (ih > sectionH) ih = sectionH;
         const yCenter = yOff + (sectionH - ih) / 2;
-        doc.image(despues, 50, yCenter, { fit: [pw, ih] });
+        const xCenter = 50 + (pw - imgW) / 2;
+        doc.image(despues, xCenter, yCenter, { fit: [imgW, ih] });
       }
 
       doc.fontSize(8).fillColor('#aaa').font('Helvetica')
