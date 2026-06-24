@@ -11,39 +11,55 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
     doc.on('data', chunk => buffers.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(buffers)));
 
-    try {
-      // ====== PAGE 1: Header + Datos del Equipo ======
-      // Accent bar top
-      doc.rect(0, 0, doc.page.width, 8).fill(accentColor);
-      doc.fillColor(primaryColor).fontSize(22).font('Helvetica-Bold')
-        .text('MANTENIMIENTO PREVENTIVO', 50, 30, { align: 'center' });
-      doc.fillColor('#555').fontSize(11).font('Helvetica')
-        .text(`Fecha: ${fecha}    |    Técnico: ${tecnico}`, { align: 'center' });
-      doc.moveDown(2);
+    function getFoto(key) {
+      const raw = fotos
+        ? Array.isArray(fotos)
+          ? fotos[{ antes: 0, durante: 1, despues: 2 }[key]]
+          : fotos[key]
+        : null;
+      if (!raw) return null;
+      try {
+        const b64 = raw.replace(/^data:image\/\w+;base64,/, '');
+        const buf = Buffer.from(b64, 'base64');
+        return buf.length > 50 ? buf : null;
+      } catch { return null; }
+    }
 
-      // Separator line
-      doc.moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).strokeColor('#ccc').lineWidth(1).stroke();
-      doc.moveDown(1.5);
-
-      // Section title with background
-      doc.rect(50, doc.y - 4, pageWidth, 22).fill(accentColor);
-      doc.fillColor('#fff').fontSize(12).font('Helvetica-Bold')
-        .text('DATOS DEL EQUIPO', 60, doc.y - 2);
+    function drawHeader(text, y) {
+      doc.rect(50, y - 4, pageWidth, 22).fill(accentColor);
+      doc.fillColor('#fff').fontSize(11).font('Helvetica-Bold').text(text, 55, y);
       doc.fillColor('#000');
+    }
+
+    function drawFooter(text) {
+      doc.fontSize(8).fillColor('#aaa').font('Helvetica')
+        .text(text || 'Mantenimiento Preventivo', 50, doc.page.height - 30, { align: 'center' });
+    }
+
+    function placeImage(imgBuf, maxW, maxH, yOffset) {
+      let w = maxW, h = (w / 4) * 3;
+      if (h > maxH) { h = maxH; w = (h / 3) * 4; }
+      const x = (doc.page.width - w) / 2;
+      doc.image(imgBuf, x, yOffset, { fit: [w, h], align: 'center', valign: 'center' });
+    }
+
+    try {
+      // ====== PAGE 1: Header + Data + ANTES photo ======
+      // Top bar
+      doc.rect(0, 0, doc.page.width, 8).fill(primaryColor);
+      doc.fillColor(primaryColor).fontSize(20).font('Helvetica-Bold')
+        .text('MANTENIMIENTO PREVENTIVO', 50, 30, { align: 'center' });
+      doc.fillColor('#555').fontSize(10).font('Helvetica')
+        .text(`Fecha: ${fecha}    |    Técnico: ${tecnico}`, { align: 'center' });
       doc.moveDown(1.5);
 
-      // Table header
-      const tLeft = 55;
-      const tRight = doc.page.width - 55;
-      const tRowH = 18;
-      let yStart = doc.y;
+      // Separator
+      doc.moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).strokeColor('#ddd').lineWidth(1).stroke();
+      let y = doc.y + 8;
 
-      doc.rect(tLeft, yStart, (tRight - tLeft) / 2 - 1, 20).fill('#1a1a2e');
-      doc.rect(tLeft + (tRight - tLeft) / 2 + 1, yStart, (tRight - tLeft) / 2 - 1, 20).fill('#1a1a2e');
-      doc.fillColor('#e94560').fontSize(9).font('Helvetica-Bold')
-        .text('CAMPO', tLeft + 8, yStart + 5)
-        .text('VALOR', tLeft + (tRight - tLeft) / 2 + 10, yStart + 5);
-      yStart += 20;
+      // Equipment table
+      drawHeader('DATOS DEL EQUIPO', y + 2);
+      y += 28;
 
       const fields = [
         ['SERIAL', datosEquipo.serial],
@@ -59,85 +75,67 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
         ['SUPERVISOR', datosEquipo.supervisor]
       ];
 
-      doc.fillColor('#000');
+      const tLeft = 55;
+      const tRight = doc.page.width - 55;
+      const tRowH = 16;
+
       fields.forEach(([label, value], i) => {
-        if (yStart > doc.page.height - 60) {
-          doc.addPage();
-          yStart = 50;
-        }
         if (i % 2 === 1) {
-          doc.rect(tLeft, yStart, tRight - tLeft, tRowH).fill('#f5f5f5');
+          doc.rect(tLeft, y, tRight - tLeft, tRowH).fill('#f5f5f5');
         }
-        doc.fillColor(i % 2 === 1 ? '#333' : '#000').fontSize(9).font('Helvetica-Bold')
-          .text(label, tLeft + 8, yStart + 4);
-        doc.font('Helvetica')
-          .text(value || 'N/A', tLeft + (tRight - tLeft) / 2 + 10, yStart + 4);
-        yStart += tRowH;
+        doc.fillColor(i % 2 === 1 ? '#333' : '#000').fontSize(8).font('Helvetica-Bold')
+          .text(label, tLeft + 6, y + 4);
+        doc.font('Helvetica').text(value || 'N/A', tLeft + (tRight - tLeft) / 2 + 6, y + 4);
+        y += tRowH;
       });
 
-      doc.y = yStart + 10;
-      doc.moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).strokeColor('#ccc').lineWidth(1).stroke();
+      y += 10;
 
-      // Footer
-      doc.fontSize(8).fillColor('#aaa').font('Helvetica')
-        .text('Documento generado automáticamente — Mantenimiento Preventivo', 50, doc.page.height - 30, { align: 'center' });
-
-      // ====== PHOTO PAGES ======
-      const sections = [
-        { label: 'ANTES', key: 'antes', color: '#4CAF50' },
-        { label: 'DURANTE', key: 'durante', color: '#FF9800' },
-        { label: 'DESPUÉS', key: 'despues', color: '#2196F3' }
-      ];
-
-      for (const section of sections) {
-        doc.addPage();
-
-        // Top accent bar
-        doc.rect(0, 0, doc.page.width, 60).fill(section.color);
-        doc.fillColor('#fff').fontSize(20).font('Helvetica-Bold')
-          .text(`FOTO: ${section.label}`, 0, 18, { align: 'center' });
-
-        // Subtle background rectangle
-        doc.rect(30, 80, doc.page.width - 60, doc.page.height - 140).fill('#fafafa');
-
-        const fotoBase64 = fotos
-          ? Array.isArray(fotos)
-            ? fotos[{ antes: 0, durante: 1, despues: 2 }[section.key]]
-            : fotos[section.key]
-          : null;
-
-        if (fotoBase64) {
-          try {
-            const raw = fotoBase64.replace(/^data:image\/\w+;base64,/, '');
-            const imgBuffer = Buffer.from(raw, 'base64');
-            if (imgBuffer.length > 50) {
-              const maxW = doc.page.width - 120;
-              const maxH = doc.page.height - 200;
-              let imgW = maxW;
-              let imgH = (imgW / 4) * 3;
-              if (imgH > maxH) {
-                imgH = maxH;
-                imgW = (imgH / 3) * 4;
-              }
-              const imgX = (doc.page.width - imgW) / 2;
-              const imgY = (doc.page.height - imgH) / 2 + 10;
-              doc.image(imgBuffer, imgX, imgY, { fit: [imgW, imgH], align: 'center', valign: 'center' });
-            } else {
-              doc.fillColor('#999').fontSize(11).font('Helvetica')
-                .text('(Imagen vacía)', 0, doc.page.height / 2 - 10, { align: 'center' });
-            }
-          } catch (imgErr) {
-            doc.fillColor('#e94560').fontSize(11).font('Helvetica')
-              .text('(Error al cargar la imagen)', 0, doc.page.height / 2 - 10, { align: 'center' });
-          }
-        } else {
-          doc.fillColor('#999').fontSize(11).font('Helvetica')
-            .text('(Sin foto)', 0, doc.page.height / 2 - 10, { align: 'center' });
-        }
-
-        doc.fontSize(8).fillColor('#aaa').font('Helvetica')
-          .text(`Mantenimiento Preventivo — ${section.label}`, 50, doc.page.height - 30, { align: 'center' });
+      // ANTES photo
+      const antesImg = getFoto('antes');
+      if (antesImg) {
+        doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor('#4CAF50').lineWidth(1).stroke();
+        y += 6;
+        doc.fillColor('#4CAF50').fontSize(12).font('Helvetica-Bold').text('ANTES', 50, y, { align: 'center' });
+        y += 18;
+        const remainH = doc.page.height - y - 40;
+        placeImage(antesImg, pageWidth, remainH, y);
       }
+
+      drawFooter();
+
+      // ====== PAGE 2: DURANTE + DESPUÉS ======
+      doc.addPage();
+      doc.rect(0, 0, doc.page.width, 8).fill('#FF9800');
+      doc.fillColor('#FF9800').fontSize(18).font('Helvetica-Bold')
+        .text('FOTOS', 50, 30, { align: 'center' });
+      doc.moveDown(1.5);
+
+      // DURANTE
+      y = doc.y;
+      const durImg = getFoto('durante');
+      if (durImg) {
+        doc.fillColor('#FF9800').fontSize(12).font('Helvetica-Bold').text('DURANTE', { align: 'center' });
+        y = doc.y + 6;
+        const halfPageH = (doc.page.height - y - 60) / 2;
+        placeImage(durImg, pageWidth - 40, halfPageH - 10, y);
+        y += halfPageH + 10;
+      }
+
+      // Separator
+      doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor('#ddd').lineWidth(1).stroke();
+      y += 10;
+
+      // DESPUÉS
+      const despImg = getFoto('despues');
+      if (despImg) {
+        doc.fillColor('#2196F3').fontSize(12).font('Helvetica-Bold').text('DESPUÉS', y, { align: 'center' });
+        y = doc.y + 6;
+        const remainH = doc.page.height - y - 40;
+        placeImage(despImg, pageWidth - 40, remainH, y);
+      }
+
+      drawFooter();
 
     } catch (err) {
       try { doc.end(); } catch (e) { }
