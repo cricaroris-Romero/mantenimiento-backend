@@ -5,6 +5,7 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
     const doc = new PDFDocument({ size: 'A4', margin: 50 });
     const buffers = [];
     const pw = doc.page.width - 100;
+    const ph = doc.page.height;
     const accent = '#0f3460';
     const red = '#e94560';
 
@@ -33,12 +34,6 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
       doc.y = y + 24;
     }
 
-    function drawImg(buf, x, y, maxW, maxH) {
-      let w = maxW, h = (w / 4) * 3;
-      if (h > maxH) { h = maxH; w = (h / 3) * 4; }
-      if (w > 10 && h > 10) doc.image(buf, x + (maxW - w) / 2, y, { fit: [w, h], align: 'center' });
-    }
-
     try {
       // ====== PAGE 1 ======
       doc.rect(0, 0, doc.page.width, 6).fill(red);
@@ -62,68 +57,74 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
       ];
 
       const tl = 55, tr = doc.page.width - 55, rh = 15;
-      let y = doc.y;
+      let yOff = doc.y;
       fields.forEach(([l, v], i) => {
-        if (i % 2 === 1) doc.rect(tl, y, tr - tl, rh).fill('#f5f5f5');
-        doc.fillColor(i % 2 === 1 ? '#333' : '#000').fontSize(8).font('Helvetica-Bold').text(l, tl + 6, y + 3);
-        doc.font('Helvetica').text(v || 'N/A', tl + (tr - tl) / 2 + 6, y + 3);
-        y += rh;
+        if (i % 2 === 1) doc.rect(tl, yOff, tr - tl, rh).fill('#f5f5f5');
+        doc.fillColor(i % 2 === 1 ? '#333' : '#000').fontSize(8).font('Helvetica-Bold').text(l, tl + 6, yOff + 3);
+        doc.font('Helvetica').text(v || 'N/A', tl + (tr - tl) / 2 + 6, yOff + 3);
+        yOff += rh;
       });
-      doc.y = y + 8;
 
+      yOff += 8;
       const antes = getBuf('antes');
       if (antes) {
-        doc.moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).strokeColor('#4CAF50').lineWidth(1).stroke();
-        doc.moveDown(0.5);
-        y = doc.y;
-        doc.fillColor('#4CAF50').fontSize(11).font('Helvetica-Bold').text('FOTO ANTES', 50, y, { align: 'center', width: pw });
-        y += 18;
-        const availH = doc.page.height - y - 30;
-        drawImg(antes, 50, y, pw, availH);
+        doc.moveTo(50, yOff).lineTo(doc.page.width - 50, yOff).strokeColor('#4CAF50').lineWidth(1).stroke();
+        yOff += 6;
+        doc.fillColor('#4CAF50').fontSize(11).font('Helvetica-Bold').text('FOTO ANTES', 50, yOff, { align: 'center', width: pw });
+        yOff += 18;
+        const imgW = pw;
+        let imgH = (imgW / 4) * 3;
+        const maxH = ph - yOff - 30;
+        if (imgH > maxH) { imgH = maxH; }
+        if (imgW > 10 && imgH > 10 && antes) {
+          doc.image(antes, 50 + (pw - imgW) / 2, yOff, { fit: [imgW, imgH] });
+        }
       }
 
       doc.fontSize(8).fillColor('#aaa').font('Helvetica')
-        .text('Mantenimiento Preventivo', 50, doc.page.height - 25, { align: 'center' });
+        .text('Mantenimiento Preventivo', 50, ph - 25, { align: 'center' });
 
       // ====== PAGE 2 ======
       doc.addPage();
 
       const durante = getBuf('durante');
       const despues = getBuf('despues');
+      const safeH = ph - 60; // page height minus bottom margin
+
+      if (durante) {
+        yOff = 35;
+        doc.fillColor('#FF9800').fontSize(11).font('Helvetica-Bold').text('FOTO DURANTE', 50, yOff, { align: 'center', width: pw });
+        yOff += 18;
+        const halfSafe = safeH / 2 - 25;
+        let iw = pw;
+        let ih = (iw / 4) * 3;
+        if (ih > halfSafe) { ih = halfSafe; }
+        doc.image(durante, 50 + (pw - iw) / 2, yOff, { fit: [iw, ih] });
+      }
 
       if (durante && despues) {
-        // Split page in half: top = DURANTE, bottom = DESPUES
-        const midY = doc.page.height / 2 - 10;
-
-        y = 40;
-        doc.fillColor('#FF9800').fontSize(11).font('Helvetica-Bold').text('FOTO DURANTE', 50, y, { align: 'center', width: pw });
-        y += 18;
-        const topH = midY - y - 10;
-        drawImg(durante, 50, y, pw, topH);
-
-        y = midY + 10;
-        doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor('#ddd').lineWidth(1).stroke();
-        y += 14;
-        doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', 50, y, { align: 'center', width: pw });
-        y += 18;
-        const botH = doc.page.height - y - 30;
-        drawImg(despues, 50, y, pw, botH);
-
-      } else if (durante) {
-        y = 40;
-        doc.fillColor('#FF9800').fontSize(11).font('Helvetica-Bold').text('FOTO DURANTE', 50, y, { align: 'center', width: pw });
-        y += 18;
-        drawImg(durante, 50, y, pw, doc.page.height - y - 30);
-
+        yOff = safeH / 2 + 15;
+        doc.moveTo(50, yOff).lineTo(doc.page.width - 50, yOff).strokeColor('#ddd').lineWidth(1).stroke();
+        yOff += 16;
+        doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', 50, yOff, { align: 'center', width: pw });
+        yOff += 18;
+        const halfSafe = safeH / 2 - 25;
+        let iw = pw;
+        let ih = (iw / 4) * 3;
+        if (ih > halfSafe) { ih = halfSafe; }
+        doc.image(despues, 50 + (pw - iw) / 2, yOff, { fit: [iw, ih] });
       } else if (despues) {
-        y = 40;
-        doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', 50, y, { align: 'center', width: pw });
-        y += 18;
-        drawImg(despues, 50, y, pw, doc.page.height - y - 30);
+        yOff = 35;
+        doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', 50, yOff, { align: 'center', width: pw });
+        yOff += 18;
+        let iw = pw;
+        let ih = (iw / 4) * 3;
+        if (ih > safeH - yOff) { ih = safeH - yOff; }
+        doc.image(despues, 50 + (pw - iw) / 2, yOff, { fit: [iw, ih] });
       }
 
       doc.fontSize(8).fillColor('#aaa').font('Helvetica')
-        .text('Mantenimiento Preventivo', 50, doc.page.height - 25, { align: 'center' });
+        .text('Mantenimiento Preventivo', 50, ph - 25, { align: 'center' });
 
     } catch (err) {
       try { doc.end(); } catch (e) { }
