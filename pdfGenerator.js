@@ -12,7 +12,7 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
     doc.on('data', chunk => buffers.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(buffers)));
 
-    function getBuf(key) {
+    function getImg(key) {
       const raw = fotos
         ? Array.isArray(fotos)
           ? fotos[{ antes: 0, durante: 1, despues: 2 }[key]]
@@ -22,8 +22,23 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
       try {
         const b64 = raw.replace(/^data:image\/\w+;base64,/, '');
         const buf = Buffer.from(b64, 'base64');
-        return buf.length > 50 ? buf : null;
+        if (buf.length <= 50) return null;
+        const info = doc.openImage(buf);
+        return { buf, width: info.width, height: info.height };
       } catch { return null; }
+    }
+
+    function renderImg(img, areaX, areaY, areaW, areaH) {
+      if (!img) return;
+      let w = Math.min(areaW, img.width);
+      let h = img.height * (w / img.width);
+      if (h > areaH) {
+        w = areaH * (w / h);
+        h = areaH;
+      }
+      const x = areaX + (areaW - w) / 2;
+      const y = areaY + (areaH - h) / 2;
+      doc.image(img.buf, x, y, { width: w });
     }
 
     function hdr(text, color) {
@@ -66,71 +81,43 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
       });
 
       yOff += 8;
-      const antes = getBuf('antes');
+      const antes = getImg('antes');
       if (antes) {
         doc.moveTo(50, yOff).lineTo(doc.page.width - 50, yOff).strokeColor('#4CAF50').lineWidth(1).stroke();
         yOff += 6;
         doc.fillColor('#4CAF50').fontSize(11).font('Helvetica-Bold').text('FOTO ANTES', 50, yOff, { align: 'center', width: pw });
         yOff += 18;
-        const imgW = pw * 0.85;
-        let imgH = (imgW / 4) * 3;
-        const maxH = (ph - 65) - yOff;
-        if (imgH > maxH) { imgH = maxH; }
-        if (imgW > 10 && imgH > 10 && antes) {
-          const yCenter = yOff + (maxH - imgH) / 2;
-          const xCenter = 50 + (pw - imgW) / 2;
-          doc.image(antes, xCenter, yCenter, { fit: [imgW, imgH] });
-        }
+        renderImg(antes, 50, yOff, pw, (ph - 65) - yOff);
       }
 
       doc.fontSize(8).fillColor('#aaa').font('Helvetica')
         .text('Mantenimiento Preventivo', 50, ph - 60, { align: 'center' });
 
-      // ====== PAGE 2 (exact fit: both images must stay within page) ======
+      // ====== PAGE 2 ======
       doc.addPage();
 
-      const durante = getBuf('durante');
-      const despues = getBuf('despues');
-      const maxImgH = (ph - 200) / 2;
+      const durante = getImg('durante');
+      const despues = getImg('despues');
 
       if (durante) {
         yOff = 35;
         doc.fillColor('#FF9800').fontSize(11).font('Helvetica-Bold').text('FOTO DURANTE', 50, yOff, { align: 'center', width: pw });
         yOff += 18;
-        const sepY = 35 + 18 + maxImgH + 25;
-        const sectionH = (sepY - 5) - yOff;
-        const imgW = pw * 0.85;
-        let ih = (imgW / 4) * 3;
-        if (ih > sectionH) ih = sectionH;
-        const yCenter = yOff + (sectionH - ih) / 2;
-        const xCenter = 50 + (pw - imgW) / 2;
-        doc.image(durante, xCenter, yCenter, { fit: [imgW, ih] });
+        renderImg(durante, 50, yOff, pw, despues ? (ph - 200) / 2 + 15 : (ph - 65) - yOff);
       }
 
       if (durante && despues) {
-        yOff = 35 + 18 + maxImgH + 25;
+        yOff = 35 + 18 + ((ph - 200) / 2) + 25;
         doc.moveTo(50, yOff).lineTo(doc.page.width - 50, yOff).strokeColor('#ddd').lineWidth(1).stroke();
         yOff += 16;
         doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', 50, yOff, { align: 'center', width: pw });
         yOff += 18;
-        const sectionH = (ph - 65) - yOff;
-        const imgW = pw * 0.85;
-        let ih = (imgW / 4) * 3;
-        if (ih > sectionH) ih = sectionH;
-        const yCenter = yOff + (sectionH - ih) / 2;
-        const xCenter = 50 + (pw - imgW) / 2;
-        doc.image(despues, xCenter, yCenter, { fit: [imgW, ih] });
+        renderImg(despues, 50, yOff, pw, (ph - 65) - yOff);
       } else if (despues) {
         yOff = 35;
         doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', 50, yOff, { align: 'center', width: pw });
         yOff += 18;
-        const sectionH = (ph - 65) - yOff;
-        const imgW = pw * 0.85;
-        let ih = (imgW / 4) * 3;
-        if (ih > sectionH) ih = sectionH;
-        const yCenter = yOff + (sectionH - ih) / 2;
-        const xCenter = 50 + (pw - imgW) / 2;
-        doc.image(despues, xCenter, yCenter, { fit: [imgW, ih] });
+        renderImg(despues, 50, yOff, pw, (ph - 65) - yOff);
       }
 
       doc.fontSize(8).fillColor('#aaa').font('Helvetica')
