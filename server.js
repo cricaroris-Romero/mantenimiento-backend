@@ -13,13 +13,21 @@ app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 app.post('/api/send-report', async (req, res) => {
+  const { tecnico, fecha, datosEquipo, fotos, correos } = req.body;
+
+  if (!tecnico || !fecha || !datosEquipo || !correos || correos.length === 0) {
+    return res.status(400).json({ success: false, error: 'Faltan campos requeridos' });
+  }
+
+  res.json({ success: true, message: 'Reporte recibido. Procesando en segundo plano...' });
+
+  processReport({ tecnico, fecha, datosEquipo, fotos, correos }).catch(err => {
+    console.error('Error en procesamiento de fondo:', err);
+  });
+});
+
+async function processReport({ tecnico, fecha, datosEquipo, fotos, correos }) {
   try {
-    const { tecnico, fecha, datosEquipo, fotos, correos } = req.body;
-
-    if (!tecnico || !fecha || !datosEquipo || !correos || correos.length === 0) {
-      return res.status(400).json({ success: false, error: 'Faltan campos requeridos' });
-    }
-
     const ubicacion = datosEquipo.ubicacion || 'SIN_UBICACION';
     const nombreArchivo = `Mantenimiento_Preventivo_${ubicacion.replace(/[^a-zA-Z0-9]/g, '_')}_${fecha.replace(/-/g, '')}.pdf`;
 
@@ -38,18 +46,11 @@ app.post('/api/send-report', async (req, res) => {
       folderId: process.env.DRIVE_FOLDER_ID || '1fAScp71hOnFGQjsaKbIhnNEAVTnPkJzV'
     });
 
-    res.json({
-      success: true,
-      message: 'Reporte enviado correctamente',
-      pdfName: nombreArchivo,
-      driveLink: driveResult.webViewLink || 'OK'
-    });
-
+    console.log(`Reporte ${nombreArchivo} procesado OK. Drive: ${driveResult.webViewLink || 'OK'}`);
   } catch (error) {
-    console.error('Error en send-report:', error);
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Error procesando reporte:', error);
   }
-});
+}
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
