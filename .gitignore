@@ -1,0 +1,7 @@
+node.exe
+node_modules/
+.env
+service-account.json
+oauth-client.json
+tokens.json
+*.log
