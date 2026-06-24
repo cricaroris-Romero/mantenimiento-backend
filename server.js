@@ -40,12 +40,16 @@ app.post('/api/send-report', async (req, res) => {
       console.log(`[${reportId}] PDF generado: ${(pdfBuffer.length / 1024).toFixed(0)} KB`);
 
       reportStatus[reportId] = { status: 'processing', message: 'Enviando correo...' };
-      await sendEmail({
+      const emailPromise = sendEmail({
         to: correos,
         subject: `Mantenimiento Preventivo - ${ubicacion} - ${fecha}`,
         text: `Adjunto encontrará el reporte de mantenimiento preventivo para ${ubicacion} realizado el ${fecha} por ${tecnico}.`,
         attachment: { filename: nombreArchivo, content: pdfBuffer }
       });
+      const emailTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout al enviar correo (Gmail SMTP no respondió en 60s)')), 60000)
+      );
+      await Promise.race([emailPromise, emailTimeout]);
       console.log(`[${reportId}] Correo enviado a: ${correos.join(', ')}`);
 
       reportStatus[reportId] = { status: 'processing', message: 'Subiendo a Drive...' };

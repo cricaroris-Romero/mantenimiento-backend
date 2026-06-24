@@ -8,7 +8,10 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: GMAIL_USER,
     pass: GMAIL_APP_PASSWORD
-  }
+  },
+  connectionTimeout: 20000,
+  greetingTimeout: 20000,
+  socketTimeout: 40000
 });
 
 async function sendEmail({ to, subject, text, attachment }) {
