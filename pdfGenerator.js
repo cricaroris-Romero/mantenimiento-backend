@@ -84,43 +84,39 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
       doc.fontSize(8).fillColor('#aaa').font('Helvetica')
         .text('Mantenimiento Preventivo', 50, ph - 25, { align: 'center' });
 
-      // ====== PAGE 2 ======
+      // ====== PAGE 2 (exact fit: both images must stay within page) ======
       doc.addPage();
 
       const durante = getBuf('durante');
       const despues = getBuf('despues');
-      const safeH = ph - 60; // page height minus bottom margin
+      const maxImgH = (ph - 190) / 2; // exact max per image to avoid overflow
 
       if (durante) {
         yOff = 35;
         doc.fillColor('#FF9800').fontSize(11).font('Helvetica-Bold').text('FOTO DURANTE', 50, yOff, { align: 'center', width: pw });
         yOff += 18;
-        const halfSafe = safeH / 2 - 25;
-        let iw = pw;
-        let ih = (iw / 4) * 3;
-        if (ih > halfSafe) { ih = halfSafe; }
-        doc.image(durante, 50 + (pw - iw) / 2, yOff, { fit: [iw, ih] });
+        let ih = (pw / 4) * 3;
+        if (ih > maxImgH) ih = maxImgH;
+        doc.image(durante, 50, yOff, { fit: [pw, ih] });
       }
 
       if (durante && despues) {
-        yOff = safeH / 2 + 15;
+        yOff = 35 + 18 + maxImgH + 25;
         doc.moveTo(50, yOff).lineTo(doc.page.width - 50, yOff).strokeColor('#ddd').lineWidth(1).stroke();
         yOff += 16;
         doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', 50, yOff, { align: 'center', width: pw });
         yOff += 18;
-        const halfSafe = safeH / 2 - 25;
-        let iw = pw;
-        let ih = (iw / 4) * 3;
-        if (ih > halfSafe) { ih = halfSafe; }
-        doc.image(despues, 50 + (pw - iw) / 2, yOff, { fit: [iw, ih] });
+        let ih = (pw / 4) * 3;
+        if (ih > maxImgH) ih = maxImgH;
+        doc.image(despues, 50, yOff, { fit: [pw, ih] });
       } else if (despues) {
         yOff = 35;
         doc.fillColor('#2196F3').fontSize(11).font('Helvetica-Bold').text('FOTO DESPUÉS', 50, yOff, { align: 'center', width: pw });
         yOff += 18;
-        let iw = pw;
-        let ih = (iw / 4) * 3;
-        if (ih > safeH - yOff) { ih = safeH - yOff; }
-        doc.image(despues, 50 + (pw - iw) / 2, yOff, { fit: [iw, ih] });
+        let ih = (pw / 4) * 3;
+        const remain = ph - yOff - 30;
+        if (ih > remain) ih = remain;
+        doc.image(despues, 50, yOff, { fit: [pw, ih] });
       }
 
       doc.fontSize(8).fillColor('#aaa').font('Helvetica')
