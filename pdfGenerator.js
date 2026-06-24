@@ -82,14 +82,14 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
       }
 
       doc.fontSize(8).fillColor('#aaa').font('Helvetica')
-        .text('Mantenimiento Preventivo', 50, ph - 25, { align: 'center' });
+        .text('Mantenimiento Preventivo', 50, ph - 60, { align: 'center' });
 
       // ====== PAGE 2 (exact fit: both images must stay within page) ======
       doc.addPage();
 
       const durante = getBuf('durante');
       const despues = getBuf('despues');
-      const maxImgH = (ph - 190) / 2; // exact max per image to avoid overflow
+      const maxImgH = (ph - 200) / 2;
 
       if (durante) {
         yOff = 35;
@@ -120,7 +120,7 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
       }
 
       doc.fontSize(8).fillColor('#aaa').font('Helvetica')
-        .text('Mantenimiento Preventivo', 50, ph - 25, { align: 'center' });
+        .text('Mantenimiento Preventivo', 50, ph - 60, { align: 'center' });
 
     } catch (err) {
       try { doc.end(); } catch (e) { }
