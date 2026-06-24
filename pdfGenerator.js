@@ -2,13 +2,13 @@ const PDFDocument = require('pdfkit');
 
 function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
   return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'A4', margin: 50 });
+    const buffers = [];
+
+    doc.on('data', chunk => buffers.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(buffers)));
+
     try {
-      const doc = new PDFDocument({ size: 'A4', margin: 50 });
-      const buffers = [];
-
-      doc.on('data', chunk => buffers.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(buffers)));
-
       const pageWidth = doc.page.width - 100;
 
       doc.fontSize(18).font('Helvetica-Bold').text('MANTENIMIENTO PREVENTIVO', { align: 'center' });
@@ -16,7 +16,6 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
       doc.fontSize(12).font('Helvetica').text(`Fecha: ${fecha}`, { align: 'center' });
       doc.text(`Técnico: ${tecnico}`, { align: 'center' });
       doc.moveDown(1);
-
       doc.moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).stroke();
       doc.moveDown(1);
 
@@ -74,15 +73,21 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
         const fotoBase64 = fotos && fotos[section.key];
         if (fotoBase64) {
           try {
-            const imgBuffer = Buffer.from(fotoBase64, 'base64');
-            const imgWidth = Math.min(400, pageWidth);
-            const imgHeight = (imgWidth / 4) * 3;
-            doc.image(imgBuffer, doc.page.width / 2 - imgWidth / 2, doc.y, {
-              fit: [imgWidth, imgHeight],
-              align: 'center',
-              valign: 'center'
-            });
-            doc.moveDown(imgHeight / doc.currentLineHeight() + 2);
+            const raw = fotoBase64.replace(/^data:image\/\w+;base64,/, '');
+            const imgBuffer = Buffer.from(raw, 'base64');
+            if (imgBuffer.length > 50) {
+              const imgWidth = Math.min(400, pageWidth);
+              const imgHeight = (imgWidth / 4) * 3;
+              doc.image(imgBuffer, doc.page.width / 2 - imgWidth / 2, doc.y, {
+                fit: [imgWidth, imgHeight],
+                align: 'center',
+                valign: 'center'
+              });
+              doc.moveDown(imgHeight / doc.currentLineHeight() + 2);
+            } else {
+              doc.fontSize(10).font('Helvetica').text('(Imagen vacía)', { align: 'center' });
+              doc.moveDown(1);
+            }
           } catch (imgErr) {
             doc.fontSize(10).font('Helvetica').text('(Error al cargar imagen)', { align: 'center' });
             doc.moveDown(1);
@@ -101,9 +106,12 @@ function generatePDF({ tecnico, fecha, datosEquipo, fotos }) {
         { align: 'center' }
       );
       doc.text(tecnico, { align: 'center' });
-
-      doc.end();
     } catch (err) {
+      try { doc.end(); } catch (e) {}
+      return reject(err);
+    }
+
+    try { doc.end(); } catch (err) {
       reject(err);
     }
   });
