@@ -80,6 +80,35 @@ app.get('/api/reports', (req, res) => {
   res.json(reportStatus);
 });
 
+app.get('/api/diagnose', (req, res) => {
+  const fs = require('fs');
+  const hasGmailUser = !!process.env.GMAIL_USER;
+  const hasGmailPass = !!process.env.GMAIL_APP_PASSWORD;
+  const hasDriveFolder = !!process.env.DRIVE_FOLDER_ID;
+  const hasOauthClient = !!process.env.OAUTH_CLIENT_JSON;
+  const hasOauthTokens = !!process.env.OAUTH_TOKENS_JSON;
+  const hasServiceAccount = fs.existsSync('./service-account.json');
+  const hasOauthFiles = fs.existsSync('./oauth-client.json') && fs.existsSync('./tokens.json');
+
+  const driveMethod = hasOauthClient && hasOauthTokens ? 'env vars' :
+    hasOauthFiles ? 'local files' :
+    hasServiceAccount ? 'service account' :
+    'NOT CONFIGURED';
+
+  res.json({
+    email: {
+      user: hasGmailUser ? '✓' : '✗',
+      appPassword: hasGmailPass ? '✓' : '✗'
+    },
+    drive: {
+      folderId: hasDriveFolder ? '✓' : '✗',
+      method: driveMethod
+    },
+    driveWillWork: (hasOauthClient && hasOauthTokens) || hasOauthFiles || hasServiceAccount,
+    emailWillWork: hasGmailPass
+  });
+});
+
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
   if (!process.env.GMAIL_APP_PASSWORD) {
