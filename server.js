@@ -40,16 +40,12 @@ app.post('/api/send-report', async (req, res) => {
       console.log(`[${reportId}] PDF generado: ${(pdfBuffer.length / 1024).toFixed(0)} KB`);
 
       reportStatus[reportId] = { status: 'processing', message: 'Enviando correo...' };
-      const emailPromise = sendEmail({
+      await sendEmail({
         to: correos,
         subject: `Mantenimiento Preventivo - ${ubicacion} - ${fecha}`,
         text: `Adjunto encontrará el reporte de mantenimiento preventivo para ${ubicacion} realizado el ${fecha} por ${tecnico}.`,
         attachment: { filename: nombreArchivo, content: pdfBuffer }
       });
-      const emailTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout al enviar correo (Gmail SMTP no respondió en 90s)')), 90000)
-      );
-      await Promise.race([emailPromise, emailTimeout]);
       console.log(`[${reportId}] Correo enviado a: ${correos.join(', ')}`);
 
       reportStatus[reportId] = { status: 'processing', message: 'Subiendo a Drive...' };
@@ -133,8 +129,8 @@ app.post('/api/test-email', async (req, res) => {
 
 app.get('/api/diagnose', (req, res) => {
   const fs = require('fs');
-  const hasGmailUser = !!process.env.GMAIL_USER;
-  const hasGmailPass = !!process.env.GMAIL_APP_PASSWORD;
+  const hasSendGridKey = !!process.env.SENDGRID_API_KEY;
+  const hasFromEmail = !!process.env.FROM_EMAIL;
   const hasDriveFolder = !!process.env.DRIVE_FOLDER_ID;
   const hasOauthClient = !!process.env.OAUTH_CLIENT_JSON;
   const hasOauthTokens = !!process.env.OAUTH_TOKENS_JSON;
@@ -148,22 +144,22 @@ app.get('/api/diagnose', (req, res) => {
 
   res.json({
     email: {
-      user: hasGmailUser ? '✓' : '✗',
-      appPassword: hasGmailPass ? '✓' : '✗'
+      sendgridKey: hasSendGridKey ? '✓' : '✗',
+      fromEmail: hasFromEmail ? '✓' : '✗'
     },
     drive: {
       folderId: hasDriveFolder ? '✓' : '✗',
       method: driveMethod
     },
     driveWillWork: (hasOauthClient && hasOauthTokens) || hasOauthFiles || hasServiceAccount,
-    emailWillWork: hasGmailPass
+    emailWillWork: hasSendGridKey
   });
 });
 
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
-  if (!process.env.GMAIL_APP_PASSWORD) {
-    console.warn('GMAIL_APP_PASSWORD no configurada. Los correos se simularán.');
+  if (!process.env.SENDGRID_API_KEY) {
+    console.warn('SENDGRID_API_KEY no configurada. Los correos se simularán.');
   }
   const fs = require('fs');
   const saPath = process.env.SERVICE_ACCOUNT_PATH || './service-account.json';
