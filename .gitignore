@@ -5,3 +5,5 @@ service-account.json
 oauth-client.json
 tokens.json
 *.log
+*.pdf
+sync-data.json

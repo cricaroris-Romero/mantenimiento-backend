@@ -4,14 +4,16 @@ const GMAIL_USER = process.env.GMAIL_USER || 'distribuidora.beerman@gmail.com';
 const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD || '';
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
     user: GMAIL_USER,
     pass: GMAIL_APP_PASSWORD
   },
-  connectionTimeout: 20000,
-  greetingTimeout: 20000,
-  socketTimeout: 40000
+  connectionTimeout: 45000,
+  greetingTimeout: 45000,
+  socketTimeout: 120000
 });
 
 async function sendEmail({ to, subject, text, attachment }) {
@@ -29,12 +31,12 @@ async function sendEmail({ to, subject, text, attachment }) {
     bcc: GMAIL_USER,
     subject,
     text,
-    attachments: [
+    attachments: attachment ? [
       {
         filename: attachment.filename,
         content: attachment.content
       }
-    ]
+    ] : []
   };
 
   const info = await transporter.sendMail(mailOptions);

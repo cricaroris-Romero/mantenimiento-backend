@@ -47,7 +47,7 @@ app.post('/api/send-report', async (req, res) => {
         attachment: { filename: nombreArchivo, content: pdfBuffer }
       });
       const emailTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout al enviar correo (Gmail SMTP no respondió en 60s)')), 60000)
+        setTimeout(() => reject(new Error('Timeout al enviar correo (Gmail SMTP no respondió en 90s)')), 90000)
       );
       await Promise.race([emailPromise, emailTimeout]);
       console.log(`[${reportId}] Correo enviado a: ${correos.join(', ')}`);
@@ -76,12 +76,59 @@ app.get('/api/report-status/:id', (req, res) => {
   res.json(status);
 });
 
+/* ======= SYNC (progreso compartido entre dispositivos) ======= */
+const fs = require('fs');
+const SYNC_FILE = './sync-data.json';
+
+function readSync() {
+  try {
+    return JSON.parse(fs.readFileSync(SYNC_FILE, 'utf8'));
+  } catch {
+    return { sent: {}, drafts: {} };
+  }
+}
+
+function writeSync(data) {
+  fs.writeFileSync(SYNC_FILE, JSON.stringify(data, null, 2));
+}
+
+app.get('/api/sync', (req, res) => {
+  res.json(readSync());
+});
+
+app.post('/api/sync', (req, res) => {
+  try {
+    const { sent, drafts } = req.body;
+    const current = readSync();
+    if (sent !== undefined) current.sent = sent;
+    if (drafts !== undefined) current.drafts = drafts;
+    writeSync(current);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 app.get('/api/reports', (req, res) => {
   res.json(reportStatus);
+});
+
+app.post('/api/test-email', async (req, res) => {
+  try {
+    const testResult = await sendEmail({
+      to: ['distribuidora.beerman@gmail.com'],
+      subject: 'Test desde Render',
+      text: 'Si recibís esto, el email funciona desde Render.',
+      attachment: null
+    });
+    res.json({ success: true, simulated: !!testResult.simulated });
+  } catch (err) {
+    res.json({ success: false, error: err.message, code: err.code });
+  }
 });
 
 app.get('/api/diagnose', (req, res) => {
